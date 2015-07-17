@@ -84,7 +84,7 @@ class TestRepository(base.BaseCraneAPITest):
         self.assertEqual(response.headers['X-Docker-Registry-Config'], 'common')
         self.assertEqual(response.headers['X-Docker-Registry-Version'], '0.6.6')
 
-        self.assertEqual(json.loads(response.data), {'latest': 'abc123'})
+        self.assertEqual(json.loads(response.data), {'test': 'def234', 'latest': 'abc123'})
 
     def test_tags_no_namespace(self):
         """
@@ -98,7 +98,7 @@ class TestRepository(base.BaseCraneAPITest):
         self.assertEqual(response.headers['X-Docker-Registry-Config'], 'common')
         self.assertEqual(response.headers['X-Docker-Registry-Version'], '0.6.6')
 
-        self.assertEqual(json.loads(response.data), {'latest': 'def456'})
+        self.assertEqual(json.loads(response.data), {'latest': 'def456', 'test': 'ghi789'})
 
     def test_tags_404(self):
         response = self.test_client.get('/v1/repositories/redhat/idontexist/tags')
@@ -114,3 +114,97 @@ class TestRepository(base.BaseCraneAPITest):
         response = self.test_client.get('/v1/repositories/a/b/c/d/tags')
 
         self.assertEqual(response.status_code, 404)
+
+    def test_tag_get_tag(self):
+        response = self.test_client.get('/v1/repositories/redhat/foo/tags/test')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers['Content-Type'], 'application/json')
+        self.assertEqual(response.headers['X-Docker-Registry-Config'], 'common')
+        self.assertEqual(response.headers['X-Docker-Registry-Version'], '0.6.6')
+
+        self.assertEqual(json.loads(response.data), 'def234')
+
+    def test_tag_get_tag_no_namespace(self):
+        """
+        The "bar" repository ID does not have a namespace
+        """
+        # the docker client adds "library" as the default namespace in this case.
+        response = self.test_client.get('/v1/repositories/library/bar/tags/test')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers['Content-Type'], 'application/json')
+        self.assertEqual(response.headers['X-Docker-Registry-Config'], 'common')
+        self.assertEqual(response.headers['X-Docker-Registry-Version'], '0.6.6')
+
+    def test_tag_get_tag_404(self):
+        response = self.test_client.get('/v1/repositories/redhat/idontexist/tag/test')
+
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(response.headers['Content-Type'].startswith('text/html'))
+
+    def test_tag_get_tag_too_many_slashes(self):
+        """
+        The repo_id may have at most one slash. Here we have 3, which should
+        cause a 404
+        """
+        response = self.test_client.get('/v1/repositories/a/b/c/d/tags/test')
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_tag_get_tag_not_found(self):
+        """
+        The tag may not exist. Here, nop repo does not have a test tag, which
+        should result in a 404
+        """
+        response = self.test_client.get('/v1/repositories/library/nop/tags/test')
+
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(response.headers['Content-Type'].startswith('text/html'))
+
+    def test_tag_latest(self):
+        response = self.test_client.get('/v1/repositories/redhat/foo/tags/latest')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers['Content-Type'], 'application/json')
+        self.assertEqual(response.headers['X-Docker-Registry-Config'], 'common')
+        self.assertEqual(response.headers['X-Docker-Registry-Version'], '0.6.6')
+
+        self.assertEqual(json.loads(response.data), 'abc123')
+
+    def test_tag_latest_no_namespace(self):
+        """
+        The "bar" repository ID does not have a namespace
+        """
+        # the docker client adds "library" as the default namespace in this case.
+        response = self.test_client.get('/v1/repositories/library/bar/tags/latest')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers['Content-Type'], 'application/json')
+        self.assertEqual(response.headers['X-Docker-Registry-Config'], 'common')
+        self.assertEqual(response.headers['X-Docker-Registry-Version'], '0.6.6')
+
+    def test_tag_latest_404(self):
+        response = self.test_client.get('/v1/repositories/redhat/idontexist/tag/latest')
+
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(response.headers['Content-Type'].startswith('text/html'))
+
+    def test_tag_latest_too_many_slashes(self):
+        """
+        The repo_id may have at most one slash. Here we have 3, which should
+        cause a 404
+        """
+        response = self.test_client.get('/v1/repositories/a/b/c/d/tags/latest')
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_tag_latest_not_found(self):
+        """
+        The latest tag may not exist. Here, nop repo does not have a latest tag, which
+        should result in a 404
+        """
+        response = self.test_client.get('/v1/repositories/library/nop/tags/latest')
+
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(response.headers['Content-Type'].startswith('text/html'))
